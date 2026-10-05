@@ -1,0 +1,2 @@
+{"name":"hrm","version":"1.0.0","private":true,"scripts":{"start":"node server/index.js"},"engines":{"node":">=18"},
+"dependencies":{"bcryptjs":"^2.4.3","express":"^4.19.2","multer":"^1.4.5-lts.1"},"optionalDependencies":{"argon2":"^0.40.3"}}
