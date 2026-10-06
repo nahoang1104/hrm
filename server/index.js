@@ -1,6 +1,7 @@
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 try { fs.readFileSync(path.join(__dirname, '../.env'), 'utf8').split(/\r?\n/).forEach(l => { const m = l.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/); if (m && !(m[1] in process.env)) process.env[m[1]] = m[2]; }); } catch {}
 const express = require('express'), multer = require('multer'), bc = require('bcryptjs'), db = require('./kio');
+const { seedDemo } = require('./seed');
 let A; try { A = require('argon2'); } catch {}
 const hash = p => (A ? A.hash(p, { type: A.argon2id }) : bc.hash(p, 12));
 const verify = async (h, p) => (h.startsWith('$argon2') ? !!A && A.verify(h, p) : bc.compare(p, h));
@@ -234,9 +235,16 @@ app.get('/', (q, r) => r.sendFile(path.join(ROOT, 'index.html')));
 (async () => {
   try {
     if (!(await db.list('users')).length) {
-      const pw = process.env.SEED_ADMIN_PASSWORD, un = process.env.SEED_ADMIN_USER || 'admin';
-      if (pw) { const uid = id('user'); await db.sync('users', [{ id: uid, username: un, passwordHash: await hash(pw), role: 'SUPER_ADMIN', status: 'ACTIVE', mustChangePassword: true, createdAt: now(), updatedAt: now(), lastLoginAt: null }]); await db.sync('profiles', [{ id: 'pf_' + uid, userId: uid, fullName: 'Quản trị hệ thống', profilePictureFileId: null }]); console.log('Đã tạo SUPER_ADMIN:', un); }
-      else console.warn('Chưa có user. Đặt SEED_ADMIN_PASSWORD để tạo SUPER_ADMIN đầu tiên.');
+      if (process.env.SEED_DEMO === '1') {
+        const result = await seedDemo(db, id, now);
+        if (result.seeded) {
+          console.log(`Đã seed ${result.count} tài khoản demo. Mật khẩu chung: ${result.password}`);
+        }
+      } else {
+        const pw = process.env.SEED_ADMIN_PASSWORD, un = process.env.SEED_ADMIN_USER || 'admin';
+        if (pw) { const uid = id('user'); await db.sync('users', [{ id: uid, username: un, passwordHash: await hash(pw), role: 'SUPER_ADMIN', status: 'ACTIVE', mustChangePassword: true, createdAt: now(), updatedAt: now(), lastLoginAt: null }]); await db.sync('profiles', [{ id: 'pf_' + uid, userId: uid, fullName: 'Quản trị hệ thống', profilePictureFileId: null }]); console.log('Đã tạo SUPER_ADMIN:', un); }
+        else console.warn('Chưa có user. Đặt SEED_ADMIN_PASSWORD để tạo SUPER_ADMIN đầu tiên.');
+      }
     }
   } catch (e) { console.error('Lỗi khởi tạo:', e.message); }
   app.listen(process.env.PORT || 3000, () => console.log(`HRM chạy tại http://localhost:${process.env.PORT || 3000} [KIO_MODE=${process.env.KIO_MODE || 'mem'}]`));
